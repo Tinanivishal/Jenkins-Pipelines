@@ -1,0 +1,86 @@
+
+// CI pipelines 
+
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'your image name'
+        IMAGE_TAG = 'your image tag'
+        NODE_ENV = "your env"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'master', credentialsId: 'git-access', url: 'https://github.com/restrove/backend_e-commerce.git'
+            }
+        }
+
+        stage('Create .env File') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'MONGO_URI', variable: 'MONGO_URI'),
+                    string(credentialsId: 'AWS_S3_BUCKET', variable: 'AWS_S3_BUCKET'),
+                    string(credentialsId: 'ACCESS_KEY_ID', variable: 'ACCESS_KEY_ID'),
+                    string(credentialsId: 'SECRET_ACCESS_KEY', variable: 'SECRET_ACCESS_KEY'),
+                    string(credentialsId: 'AWS_REGION', variable: 'AWS_REGION'),
+                    string(credentialsId: 'MAILING_EMAIL', variable: 'MAILING_EMAIL'),
+                    string(credentialsId: 'MAILING_PASSKEY', variable: 'MAILING_PASSKEY'),
+                    string(credentialsId: 'WHATSAPP_SENDER_ID', variable: 'WHATSAPP_SENDER_ID'),
+                    string(credentialsId: 'WHATSAPP_AUTH_TOKEN', variable: 'WHATSAPP_AUTH_TOKEN'),
+                    string(credentialsId: 'FTP_HOST', variable: 'FTP_HOST'),
+                    string(credentialsId: 'FTP_PORT', variable: 'FTP_PORT'),
+                    string(credentialsId: 'FTP_USERNAME', variable: 'FTP_USERNAME'),
+                    string(credentialsId: 'FTP_PASSWORD', variable: 'FTP_PASSWORD'),
+                    string(credentialsId: 'FTP_DIRECTORY', variable: 'FTP_DIRECTORY'),
+                    string(credentialsId: 'FTP_DIRECTORY_URL', variable: 'FTP_DIRECTORY_URL')
+                ]) {
+                    sh '''
+                    cat <<EOF > .env
+                    MONGO_URI=${MONGO_URI}
+                    AWS_S3_BUCKET=${AWS_S3_BUCKET}
+                    ACCESS_KEY_ID=${ACCESS_KEY_ID}
+                    SECRET_ACCESS_KEY=${SECRET_ACCESS_KEY}
+                    AWS_REGION=${AWS_REGION}
+                    NODE_ENV=${NODE_ENV}
+                    MAILING_EMAIL=${MAILING_EMAIL}
+                    MAILING_PASSKEY=${MAILING_PASSKEY}
+                    WHATSAPP_SENDER_ID=${WHATSAPP_SENDER_ID}
+                    WHATSAPP_AUTH_TOKEN=${WHATSAPP_AUTH_TOKEN}
+                    FTP_HOST=${FTP_HOST}
+                    FTP_PORT=${FTP_PORT}
+                    FTP_USERNAME=${FTP_USERNAME}
+                    FTP_PASSWORD=${FTP_PASSWORD}
+                    FTP_DIRECTORY=${FTP_DIRECTORY}
+                    FTP_DIRECTORY_URL=${FTP_DIRECTORY_URL}
+                    EOF
+                    '''
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+            }
+        }
+
+        stage('Push Image to Docker Hub') {
+            steps {
+                withDockerRegistry(credentialsId: 'docker-access', url: 'https://index.docker.io/v1/') {
+                    sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Build and Docker push successful!"
+        }
+        failure {
+            echo "❌ Build failed!"
+        }
+    }
+}

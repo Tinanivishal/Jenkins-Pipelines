@@ -1,0 +1,54 @@
+pipeline {
+    agent any
+
+    environment {
+        GIT_REPO = "your git hub repo"
+        GIT_CREDENTIALS = "git-access"
+        COMPOSE_FILE = "docker-compose.yml"
+        CONTAINER_NAME = "backend-container"
+        IMAGE_NAME = "your docker image"
+        DOCKER_CREDENTIALS = "docker crendential"  // Docker Hub credentials in Jenkins
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'master', credentialsId: "${GIT_CREDENTIALS}", url: "${GIT_REPO}"
+            }
+        }
+
+        stage('Login to Docker Hub & Pull Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: "${DOCKER_CREDENTIALS}") {
+                        sh "docker pull ${IMAGE_NAME}"
+                    }
+                }
+            }
+        }
+
+        stage('Stop & Remove Existing Container') {
+            steps {
+                script {
+                    def containerExists = sh(script: "docker ps -a --format '{{.Names}}' | grep -w ${CONTAINER_NAME} || true", returnStdout: true).trim()
+                    if (containerExists) {
+                        sh "docker stop ${CONTAINER_NAME} || true"
+                        sh "docker rm -f ${CONTAINER_NAME} || true"
+                        echo "Removed existing container: ${CONTAINER_NAME}"
+                    } else {
+                        echo "No existing container found. Skipping removal."
+                    }
+                }
+            }
+        }
+
+        stage('Deploy New Container with Docker Compose') {
+            steps {
+                sh '''
+                docker-compose down
+                docker-compose up -d
+                '''
+            }
+        }
+    }
+}
