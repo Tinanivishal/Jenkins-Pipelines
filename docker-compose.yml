@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  backend-service:
+    container_name: backend-container
+    image:     #add your image 
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - REDIS_HOST=  #add your host
+      - REDIS_PORT=  #add your port 
+
+  frontend-service:
+    container_name: frontend-container
+    image:   #add your image 
+    restart: always
+    ports:
+      - "3000:3000"
